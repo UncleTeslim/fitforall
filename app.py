@@ -30,6 +30,7 @@ llm = ChatOpenAI(
     timeout=None,
     max_retries=2,
     max_tokens=1000,
+    streaming=True,
 )
 
 
@@ -69,7 +70,8 @@ def get_response():
     if not session_id:
         session_id = str(uuid.uuid4())
 
-    user_sessions.setdefault(session_id, [])  # Create if not exists
+    # Create session if it does not exists
+    user_sessions.setdefault(session_id, [])  
     user_sessions[session_id].append(HumanMessage(content=user_message))
 
     try:
