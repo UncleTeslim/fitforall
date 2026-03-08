@@ -145,11 +145,15 @@ def welcome():
     
     details_text = "\n".join(details) if details else "No additional details provided"
     
-    welcome_prompt = f"""Start a conversation with the user. Here are their details:
+    welcome_prompt = f"""The user just started chatting. Their details:
+- Name: {name or 'not provided'}
+- Goal: {goal or 'not set'}
+- Culture: {culture}
+- Age: {age or 'not provided'}
+- Health: {health or 'none'}
+- Allergies: {allergies or 'none'}
 
-{details_text}
-
-Give them a warm, personalized welcome. Use their name if available. Acknowledge their goal and cultural background. If they have health conditions or allergies, mention you'll keep those in mind. Ask about their current situation and what specifically they want to achieve. Keep it conversational and encouraging. Make it sound like a real person talking, not a robot."""
+Reply with a SHORT welcome (2-3 sentences max). Use their name. Acknowledge their goal in one line. Ask ONE simple question. Be casual like a friend, not a robot."""
     
     user_sessions[session_id].append(HumanMessage(content=welcome_prompt))
     
