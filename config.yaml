@@ -1,0 +1,12 @@
+providers:
+  deepseek:
+    enabled: true
+    base_url: "https://api.deepseek.com/v1"
+
+  openai:
+    enabled: false
+    base_url: "https://api.openai.com/v1"
+
+  anthropic:
+    enabled: false
+    base_url: "https://api.anthropic.com/v1"

@@ -1,11 +1,8 @@
 from flask import Flask, render_template, request, jsonify, make_response
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.runnables import RunnableConfig
 from dotenv import load_dotenv
-from langchain_community.cache import InMemoryCache
-from langchain.globals import set_llm_cache
+
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, END, MessagesState, StateGraph
 from typing import Dict
@@ -13,24 +10,19 @@ import uuid
 import os
 from src.prompt import *
 
-# Set up caching and environment
-set_llm_cache(InMemoryCache())
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-
 app = Flask(__name__)
-
 
 llm = ChatOpenAI(
     model="gpt-4.1-nano",
     openai_api_key=OPENAI_API_KEY,
-    temperature=1.0,
+    temperature=0.7,
     timeout=None,
     max_retries=2,
-    max_tokens=1000,
-    streaming=True,
+    max_tokens=800,
 )
 
 
@@ -65,13 +57,44 @@ def fitness():
 
 @app.route('/get_response', methods=['POST'])
 def get_response():
-    user_message = request.json.get("message")
+    data = request.json
+    user_message = data.get("message")
+    context = data.get("context", {})
+    
     session_id = request.cookies.get('session_id')
     if not session_id:
         session_id = str(uuid.uuid4())
 
-    # Create session if it does not exists
-    user_sessions.setdefault(session_id, [])  
+    user_sessions.setdefault(session_id, [])
+    
+    # Prepend context if available
+    if context:
+        goal = context.get('goal', '')
+        culture = context.get('culture', 'nigerian')
+        name = context.get('name', '')
+        age = context.get('age', '')
+        health = context.get('health', '')
+        allergies = context.get('allergies', '')
+        nutrition_only = context.get('nutritionOnly', False)
+        home_only = context.get('homeOnly', True)
+        
+        details = []
+        if name:
+            details.append(f"Name: {name}")
+        if goal:
+            details.append(f"Goal: {goal}")
+        if culture:
+            details.append(f"Culture: {culture}")
+        if age:
+            details.append(f"Age: {age}")
+        if health:
+            details.append(f"Health: {health}")
+        if allergies:
+            details.append(f"Allergies: {allergies}")
+        
+        context_msg = "User Details: " + ", ".join(details) if details else "No additional details"
+        user_sessions[session_id].append(HumanMessage(content=context_msg))
+    
     user_sessions[session_id].append(HumanMessage(content=user_message))
 
     try:
@@ -86,6 +109,61 @@ def get_response():
         res.set_cookie("session_id", session_id)
         return res
 
+    except Exception as e:
+        return jsonify({'response': f"Error: {str(e)}"}), 500
+
+
+@app.route('/welcome', methods=['POST'])
+def welcome():
+    data = request.json or {}
+    goal = data.get('goal', '')
+    culture = data.get('culture', 'nigerian')
+    name = data.get('name', '')
+    age = data.get('age', '')
+    health = data.get('health', '')
+    allergies = data.get('allergies', '')
+    
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    
+    user_sessions.setdefault(session_id, [])
+    
+    details = []
+    if name:
+        details.append(f"Name: {name}")
+    if goal:
+        details.append(f"Goal: {goal}")
+    if culture:
+        details.append(f"Food Culture: {culture}")
+    if age:
+        details.append(f"Age: {age}")
+    if health:
+        details.append(f"Health conditions: {health}")
+    if allergies:
+        details.append(f"Allergies: {allergies}")
+    
+    details_text = "\n".join(details) if details else "No additional details provided"
+    
+    welcome_prompt = f"""Start a conversation with the user. Here are their details:
+
+{details_text}
+
+Give them a warm, personalized welcome. Use their name if available. Acknowledge their goal and cultural background. If they have health conditions or allergies, mention you'll keep those in mind. Ask about their current situation and what specifically they want to achieve. Keep it conversational and encouraging. Make it sound like a real person talking, not a robot."""
+    
+    user_sessions[session_id].append(HumanMessage(content=welcome_prompt))
+    
+    try:
+        response = workflow.invoke(
+            {"messages": user_sessions[session_id]},
+            config={"configurable": {"thread_id": session_id}}
+        )
+        welcome_msg = response["messages"][-1]
+        user_sessions[session_id].append(welcome_msg)
+        
+        res = make_response(jsonify({'response': welcome_msg.content}))
+        res.set_cookie("session_id", session_id)
+        return res
     except Exception as e:
         return jsonify({'response': f"Error: {str(e)}"}), 500
 
