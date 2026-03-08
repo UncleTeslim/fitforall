@@ -28,14 +28,25 @@ function loadFromStorage(key) {
 }
 
 // ===== ONBOARDING =====
-let selectedGoal = null;
+let selectedGoals = [];
 let selectedCulture = null;
 
 function selectGoal(card) {
-  document.querySelectorAll('.onboarding-card[data-goal]').forEach(c => c.classList.remove('selected'));
-  card.classList.add('selected');
-  selectedGoal = card.dataset.goal;
-  document.getElementById('goalCta').disabled = false;
+  const goal = card.dataset.goal;
+  
+  if (selectedGoals.includes(goal)) {
+    // Deselect
+    selectedGoals = selectedGoals.filter(g => g !== goal);
+    card.classList.remove('selected');
+  } else {
+    // Select (max 2)
+    if (selectedGoals.length < 2) {
+      selectedGoals.push(goal);
+      card.classList.add('selected');
+    }
+  }
+  
+  document.getElementById('goalCta').disabled = selectedGoals.length === 0;
 }
 
 function selectCulture(card) {
@@ -46,8 +57,8 @@ function selectCulture(card) {
 }
 
 function goToCulture() {
-  if (!selectedGoal) return;
-  saveToStorage(STORAGE_KEYS.USER_GOAL, selectedGoal);
+  if (selectedGoals.length === 0) return;
+  saveToStorage(STORAGE_KEYS.USER_GOAL, selectedGoals);
   document.getElementById('goalScreen').classList.add('hidden');
   document.getElementById('cultureScreen').classList.remove('hidden');
 }
@@ -58,14 +69,14 @@ function backToGoals() {
 }
 
 function skipCulture() {
-  if (!selectedGoal) return;
+  if (selectedGoals.length === 0) return;
   if (!selectedCulture) selectedCulture = 'other';
   document.getElementById('cultureScreen').classList.add('hidden');
   document.getElementById('detailsScreen').classList.remove('hidden');
 }
 
 function goToDetails() {
-  if (!selectedGoal) return;
+  if (selectedGoals.length === 0) return;
   document.getElementById('cultureScreen').classList.add('hidden');
   document.getElementById('detailsScreen').classList.remove('hidden');
 }
@@ -76,7 +87,7 @@ function backToCulture() {
 }
 
 function finishOnboarding() {
-  if (!selectedGoal) return;
+  if (selectedGoals.length === 0) return;
   
   // Validate age if provided
   const ageInput = document.getElementById('userAge');
@@ -89,7 +100,7 @@ function finishOnboarding() {
     }
   }
   
-  saveToStorage(STORAGE_KEYS.USER_GOAL, selectedGoal);
+  saveToStorage(STORAGE_KEYS.USER_GOAL, selectedGoals);
   if (selectedCulture) {
     saveToStorage(STORAGE_KEYS.USER_CULTURE, selectedCulture);
   }
@@ -115,7 +126,7 @@ function finishOnboarding() {
 }
 
 function updateHeaderDisplay() {
-  const goal = loadFromStorage(STORAGE_KEYS.USER_GOAL);
+  const goals = loadFromStorage(STORAGE_KEYS.USER_GOAL);
   const culture = loadFromStorage(STORAGE_KEYS.USER_CULTURE);
   
   const goalNames = {
@@ -141,7 +152,8 @@ function updateHeaderDisplay() {
     other: 'Other'
   };
   
-  document.getElementById('currentGoalDisplay').textContent = `${cultureNames[culture] || ''} ${culture && goal ? '•' : ''} ${goalNames[goal] || ''}`;
+  const goalsText = Array.isArray(goals) ? goals.map(g => goalNames[g]).filter(Boolean).join(', ') : (goalNames[goals] || '');
+  document.getElementById('currentGoalDisplay').textContent = `${cultureNames[culture] || ''} ${culture && goalsText ? '•' : ''} ${goalsText}`;
 }
 
 // ===== CHANGE GOAL/CULTURE =====
@@ -151,18 +163,17 @@ function openChangeGoal() {
   document.getElementById('quickPrompts').classList.add('hidden');
   document.getElementById('goalScreen').classList.remove('hidden');
   
-  const savedGoal = loadFromStorage(STORAGE_KEYS.USER_GOAL);
+  const savedGoals = loadFromStorage(STORAGE_KEYS.USER_GOAL);
   const savedCulture = loadFromStorage(STORAGE_KEYS.USER_CULTURE);
   
-  selectedGoal = savedGoal;
+  selectedGoals = Array.isArray(savedGoals) ? savedGoals : [];
   selectedCulture = savedCulture;
   
-  if (savedGoal) {
-    document.querySelectorAll('.onboarding-card[data-goal]').forEach(c => {
-      c.classList.toggle('selected', c.dataset.goal === savedGoal);
-    });
-    document.getElementById('goalCta').disabled = false;
-  }
+  // Update UI
+  document.querySelectorAll('.onboarding-card[data-goal]').forEach(c => {
+    c.classList.toggle('selected', selectedGoals.includes(c.dataset.goal));
+  });
+  document.getElementById('goalCta').disabled = selectedGoals.length === 0;
   
   if (savedCulture) {
     document.querySelectorAll('.onboarding-card[data-culture]').forEach(c => {
@@ -216,21 +227,25 @@ function getSmartPrompts() {
     prompts.push({ text: 'Dinner ideas', emoji: 'Dinner' });
   }
   
-  const userGoal = loadFromStorage(STORAGE_KEYS.USER_GOAL);
+  const userGoals = loadFromStorage(STORAGE_KEYS.USER_GOAL);
+  const goals = Array.isArray(userGoals) ? userGoals : [userGoals];
   
   if (nutritionOnly) {
     prompts.push({ text: 'Give me a healthy meal plan', emoji: 'Meal Plan' });
     prompts.push({ text: 'Foods to avoid', emoji: 'Foods to Avoid' });
   } else {
-    if (userGoal === 'lose_weight') {
+    if (goals.includes('lose_weight')) {
       prompts.push({ text: 'Fat burning workout', emoji: 'Fat Burn' });
       prompts.push({ text: 'Low calorie meals', emoji: 'Low Cal' });
-    } else if (userGoal === 'build_muscle') {
+    }
+    if (goals.includes('build_muscle')) {
       prompts.push({ text: 'Protein rich meals', emoji: 'Protein' });
       prompts.push({ text: 'Muscle building workout', emoji: 'Muscle' });
-    } else if (userGoal === 'eat_healthy') {
+    }
+    if (goals.includes('eat_healthy')) {
       prompts.push({ text: 'Give me a meal plan', emoji: 'Meal Plan' });
-    } else {
+    }
+    if (goals.includes('get_stronger') && prompts.length < 3) {
       prompts.push({ text: 'Give me a workout', emoji: 'Workout' });
     }
   }

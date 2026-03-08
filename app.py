@@ -78,11 +78,17 @@ def get_response():
         nutrition_only = context.get('nutritionOnly', False)
         home_only = context.get('homeOnly', True)
         
+        # Handle goals as array or string
+        if isinstance(goal, list):
+            goal_text = ', '.join(goal) if goal else 'not set'
+        else:
+            goal_text = goal or 'not set'
+        
         details = []
         if name:
             details.append(f"Name: {name}")
-        if goal:
-            details.append(f"Goal: {goal}")
+        if goal_text != 'not set':
+            details.append(f"Goals: {goal_text}")
         if culture:
             details.append(f"Culture: {culture}")
         if age:
@@ -129,11 +135,17 @@ def welcome():
     
     user_sessions.setdefault(session_id, [])
     
+    # Handle goals as array or string
+    if isinstance(goal, list):
+        goal_text = ', '.join(goal) if goal else 'not set'
+    else:
+        goal_text = goal or 'not set'
+    
     details = []
     if name:
         details.append(f"Name: {name}")
-    if goal:
-        details.append(f"Goal: {goal}")
+    if goal_text != 'not set':
+        details.append(f"Goals: {goal_text}")
     if culture:
         details.append(f"Food Culture: {culture}")
     if age:
@@ -146,14 +158,9 @@ def welcome():
     details_text = "\n".join(details) if details else "No additional details provided"
     
     welcome_prompt = f"""The user just started chatting. Their details:
-- Name: {name or 'not provided'}
-- Goal: {goal or 'not set'}
-- Culture: {culture}
-- Age: {age or 'not provided'}
-- Health: {health or 'none'}
-- Allergies: {allergies or 'none'}
+{details_text}
 
-Reply with a SHORT welcome (2-3 sentences max). Use their name. Acknowledge their goal in one line. Ask ONE simple question. Be casual like a friend, not a robot."""
+Reply with a SHORT welcome (2-3 sentences max). Use their name. Acknowledge their goals in one line. Ask ONE simple question. Be casual like a friend, not a robot."""
     
     user_sessions[session_id].append(HumanMessage(content=welcome_prompt))
     
