@@ -13,17 +13,14 @@ from src.prompt import *
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 app = Flask(__name__)
 
 llm = ChatOpenAI(
     model="gpt-4.1-nano",
-    openai_api_key=OPENAI_API_KEY,
     temperature=0.7,
     timeout=None,
     max_retries=2,
-    max_tokens=800,
+    max_completion_tokens=800,
 )
 
 
@@ -58,8 +55,8 @@ def fitness():
 
 @app.route('/get_response', methods=['POST'])
 def get_response():
-    data = request.json
-    user_message = data.get("message")
+    data = request.json or {}
+    user_message = data.get("message", "")
     context = data.get("context", {})
     
     session_id = request.cookies.get('session_id')
