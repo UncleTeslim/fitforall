@@ -1,13 +1,14 @@
-from flask import Flask, render_template, request, jsonify, make_response
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
-from dotenv import load_dotenv
-
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import START, END, MessagesState, StateGraph
-from typing import Dict
-import uuid
 import os
+import uuid
+from typing import Dict
+
+from dotenv import load_dotenv
+from flask import Flask, jsonify, make_response, render_template, request
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, START, MessagesState, StateGraph
+
 from src.prompt import *
 
 load_dotenv()
@@ -179,6 +180,6 @@ Reply with a SHORT welcome (2-3 sentences max). Use their name. Acknowledge thei
         return jsonify({'response': f"Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 
