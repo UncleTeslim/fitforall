@@ -15,31 +15,35 @@ load_dotenv()
 
 app = Flask(__name__)
 
-llm = ChatOpenAI(
-    model="gpt-4.1-nano",
-    temperature=0.7,
-    timeout=None,
-    max_retries=2,
-    max_completion_tokens=800,
-)
+# Lazy LLM initialization to avoid crash if env var isn't set at import time
+llm = None
+workflow = None
 
+def get_workflow():
+    global llm, workflow
+    if workflow is None:
+        llm = ChatOpenAI(
+            model="gpt-4.1-nano",
+            temperature=0.7,
+            timeout=None,
+            max_retries=2,
+            max_completion_tokens=800,
+        )
+        graph = StateGraph(state_schema=MessagesState)
 
+        def call_model(state: MessagesState) -> Dict:
+            system_msg = SystemMessage(content=system_prompt)
+            messages = [system_msg] + state["messages"]
+            response = llm.invoke(messages)
+            return {"messages": [response]}
 
-# Create LangGraph workflow
-graph = StateGraph(state_schema=MessagesState)
+        graph.add_node("model", call_model)
+        graph.add_edge(START, "model")
+        graph.add_edge("model", END)
 
-def call_model(state: MessagesState) -> Dict:
-    system_msg = SystemMessage(content=system_prompt)
-    messages = [system_msg] + state["messages"]
-    response = llm.invoke(messages)
-    return {"messages": [response]}
-
-graph.add_node("model", call_model)
-graph.add_edge(START, "model")
-graph.add_edge("model", END)
-
-memory = MemorySaver()
-workflow = graph.compile(checkpointer=memory)
+        memory = MemorySaver()
+        workflow = graph.compile(checkpointer=memory)
+    return workflow
 
 # Session manager
 user_sessions = {}
@@ -102,7 +106,7 @@ def get_response():
     user_sessions[session_id].append(HumanMessage(content=user_message))
 
     try:
-        response = workflow.invoke(
+        response = get_workflow().invoke(
             {"messages": user_sessions[session_id]},
             config={"configurable": {"thread_id": session_id}}
         )
@@ -163,7 +167,7 @@ Reply with a SHORT welcome (2-3 sentences max). Use their name. Acknowledge thei
     user_sessions[session_id].append(HumanMessage(content=welcome_prompt))
     
     try:
-        response = workflow.invoke(
+        response = get_workflow().invoke(
             {"messages": user_sessions[session_id]},
             config={"configurable": {"thread_id": session_id}}
         )
@@ -175,6 +179,11 @@ Reply with a SHORT welcome (2-3 sentences max). Use their name. Acknowledge thei
         return res
     except Exception as e:
         return jsonify({'response': f"Error: {str(e)}"}), 500
+
+@app.route('/health')
+def health():
+    key_set = bool(os.environ.get("OPENAI_API_KEY"))
+    return jsonify({"status": "ok", "openai_key_set": key_set})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
