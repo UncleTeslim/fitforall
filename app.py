@@ -180,6 +180,6 @@ Reply with a SHORT welcome (2-3 sentences max). Use their name. Acknowledge thei
         return jsonify({'response': f"Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 
 
