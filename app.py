@@ -182,8 +182,17 @@ Reply with a SHORT welcome (2-3 sentences max). Use their name. Acknowledge thei
 
 @app.route('/health')
 def health():
-    key_set = bool(os.environ.get("OPENAI_API_KEY"))
-    return jsonify({"status": "ok", "openai_key_set": key_set})
+    raw_key = os.environ.get("OPENAI_API_KEY", "")
+    key_set = bool(raw_key.strip())
+    all_var_names = [k for k in os.environ]
+    openai_vars = [k for k in all_var_names if "OPENAI" in k.upper()]
+    return jsonify({
+        "status": "ok",
+        "openai_key_set": key_set,
+        "key_length": len(raw_key.strip()),
+        "openai_related_vars": openai_vars,
+        "total_env_vars": len(all_var_names)
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
